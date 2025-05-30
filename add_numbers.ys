@@ -1,0 +1,3 @@
+main:
+irmovq array, %rdi
+irmovq $4, %rsi
