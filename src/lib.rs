@@ -3,6 +3,7 @@ use chumsky::text::ascii::keyword;
 use log::info;
 type ImmType = i64;
 
+mod lib_tests;
 #[derive(Debug, Clone)]
 enum Register {
     RAX,
@@ -209,6 +210,3 @@ pub fn assemble(src: &str, highest_addr: usize) -> Result<Vec<u8>, String> {
 
     Ok(memory)
 }
-
-#[cfg(test)]
-mod lib_tests;
