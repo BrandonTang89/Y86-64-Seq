@@ -8,7 +8,7 @@ fn main() {
     let dest_file = match std::env::args().nth(2) {
         Some(file) => file,
         None => {
-            let default_dest = format!("{}.o", src_file);
+            let default_dest = format!("{}o", src_file);
             println!("No output file provided, using default: {}", default_dest);
             default_dest
         }
