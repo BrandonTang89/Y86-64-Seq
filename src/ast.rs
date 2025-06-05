@@ -1,19 +1,19 @@
 pub type ImmType = i64;
-#[derive(Debug, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub enum Register {
-    RAX,
-    RBX,
-    RCX,
-    RDX,
-    RDI,
-    RSI,
-    RSP,
-    RBP,
-    R8,
-    R9,
-    R10,
-    R11,
-    R12,
+    Rax = 0,
+    Rbx = 1,
+    Rcx = 2,
+    Rdx = 3,
+    Rdi = 4,
+    Rsi = 5,
+    Rsp = 6,
+    Rbp = 7,
+    R8 = 8,
+    R9 = 9,
+    R10 = 10,
+    R11 = 11,
+    R12 = 12,
 }
 
 #[derive(Debug, Clone)]
@@ -42,12 +42,15 @@ pub enum CondOp {
 }
 
 #[derive(Debug, Clone)]
+/// Represents a label in the assembly code.
 pub enum AssemblyLine<'a> {
     Label(&'a str),
     Directive(&'a str, ImmType),
     Halt,
     Nop,
+    Rrmov(Register, Register),
     Irmov(LabOrImm<'a>, Register),
+    Rmmov(Register, ImmType, Register),
     Mrmov(ImmType, Register, Register),
     Binop(BinaryOp, Register, Register),
     Jmp(CondOp, LabOrImm<'a>),

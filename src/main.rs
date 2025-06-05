@@ -18,14 +18,14 @@ fn main() {
     let src_content = std::fs::read_to_string(&src_file).expect("Failed to read input file");
     debug!("Source content:\n{}", src_content);
 
-    let assembly_result = assemble(&src_content, 0x1000);
-    let Ok(output_bytes) = assembly_result else {
-        error!("Assembly failed");
-        std::process::exit(1);
-    };
+    // let assembly_result = assemble(&src_content, 0x1000);
+    // let Ok(output_bytes) = assembly_result else {
+    //     error!("Assembly failed");
+    //     std::process::exit(1);
+    // };
 
-    // Write the output bytes to the destination file
-    std::fs::write(&dest_file, &output_bytes).expect("Failed to write output file");
-    info!("Output written to: {}", dest_file);
-    println!("Assembly completed successfully.");
+    // // Write the output bytes to the destination file
+    // std::fs::write(&dest_file, &output_bytes).expect("Failed to write output file");
+    // info!("Output written to: {}", dest_file);
+    // println!("Assembly completed successfully.");
 }

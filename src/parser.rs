@@ -3,8 +3,29 @@ use chumsky::prelude::*;
 use chumsky::text::ascii::keyword;
 mod parser_tests;
 
+fn reg_parser<'a>() -> Boxed<'a, 'a, &'a str, Register> {
+    just('%')
+        .ignore_then(choice((
+            keyword("rax").to(Register::Rax),
+            keyword("rbx").to(Register::Rbx),
+            keyword("rcx").to(Register::Rcx),
+            keyword("rdx").to(Register::Rdx),
+            keyword("rdi").to(Register::Rdi),
+            keyword("rsi").to(Register::Rsi),
+            keyword("rsp").to(Register::Rsp),
+            keyword("rbp").to(Register::Rbp),
+            keyword("r8").to(Register::R8),
+            keyword("r9").to(Register::R9),
+            keyword("r10").to(Register::R10),
+            keyword("r11").to(Register::R11),
+            keyword("r12").to(Register::R12),
+        )))
+        .padded()
+        .boxed()
+}
+
+/// Handles parsing positive and negative decimals and hexadecimals
 fn imm_parser<'a>() -> Boxed<'a, 'a, &'a str, ImmType> {
-    // Handles parsing positive and negative decimals and hexadecimals
     let pos_imm = (choice((
         just("0x")
             .ignore_then(text::digits(16).to_slice())
@@ -22,24 +43,24 @@ fn imm_parser<'a>() -> Boxed<'a, 'a, &'a str, ImmType> {
     .boxed()
 }
 
+/// Parses either D(reg) or reg
+fn displaced_reg_parser<'a>() -> Boxed<'a, 'a, &'a str, (ImmType, Register)> {
+    let reg = reg_parser();
+    let imm = imm_parser();
+
+    choice((
+        reg.clone()
+            .delimited_by(just('('), just(')'))
+            .map(|r| (0, r)),
+        imm.clone()
+            .then(reg.clone().delimited_by(just('('), just(')'))),
+    ))
+    .padded()
+    .boxed()
+}
+
 pub fn mk_parser<'a>() -> impl Parser<'a, &'a str, Vec<AssemblyLine<'a>>> {
-    let reg = just('%')
-        .ignore_then(choice((
-            keyword("rax").to(Register::RAX),
-            keyword("rbx").to(Register::RBX),
-            keyword("rcx").to(Register::RCX),
-            keyword("rdx").to(Register::RDX),
-            keyword("rdi").to(Register::RDI),
-            keyword("rsi").to(Register::RSI),
-            keyword("rsp").to(Register::RSP),
-            keyword("rbp").to(Register::RBP),
-            keyword("r8").to(Register::R8),
-            keyword("r9").to(Register::R9),
-            keyword("r10").to(Register::R10),
-            keyword("r11").to(Register::R11),
-            keyword("r12").to(Register::R12),
-        )))
-        .padded();
+    let reg = reg_parser();
 
     let dollar_imm = just('$').ignore_then(imm_parser());
     let imm = imm_parser();
@@ -53,7 +74,7 @@ pub fn mk_parser<'a>() -> impl Parser<'a, &'a str, Vec<AssemblyLine<'a>>> {
     let label = text::ascii::ident()
         .then_ignore(just(':'))
         .padded()
-        .map(|s| AssemblyLine::Label(s));
+        .map(AssemblyLine::Label);
 
     let directive = choice((just(".align"), just(".quad")))
         .then(imm.clone())
@@ -63,23 +84,26 @@ pub fn mk_parser<'a>() -> impl Parser<'a, &'a str, Vec<AssemblyLine<'a>>> {
 
     let nop = keyword("nop").to(AssemblyLine::Nop);
 
-    let mrmov = keyword("mrmovq").ignore_then(
-        choice((
-            reg.clone()
-                .delimited_by(just('('), just(')'))
-                .map(|r| (0, r)),
-            imm.clone()
-                .then(reg.clone().delimited_by(just('('), just(')'))),
-        ))
-        .padded()
+    let rrmov = keyword("rrmovq")
+        .ignore_then(reg.clone())
         .then(just(',').ignore_then(reg.clone()))
-        .map(|((offset, base), dest)| AssemblyLine::Mrmov(offset, base, dest)),
-    );
+        .map(|(src, dst)| AssemblyLine::Rrmov(src, dst));
 
     let irmov = text::ascii::keyword("irmovq")
         .ignore_then(lab_or_imm.clone())
         .then(just(',').ignore_then(reg.clone()))
         .map(|(imm, reg)| AssemblyLine::Irmov(imm, reg));
+
+    let rmmov = keyword("rmmovq")
+        .ignore_then(reg.clone())
+        .then(just(',').ignore_then(displaced_reg_parser()))
+        .map(|(src, (offset, base))| AssemblyLine::Rmmov(src, offset, base));
+
+    let mrmov = keyword("mrmovq").ignore_then(
+        displaced_reg_parser()
+            .then(just(',').ignore_then(reg.clone()))
+            .map(|((offset, base), dest)| AssemblyLine::Mrmov(offset, base, dest)),
+    );
 
     let binop = choice((
         keyword("addq").to(BinaryOp::Add),
@@ -130,12 +154,11 @@ pub fn mk_parser<'a>() -> impl Parser<'a, &'a str, Vec<AssemblyLine<'a>>> {
         .ignore_then(reg.clone())
         .map(AssemblyLine::Pop);
 
-    let program = choice((
-        label, directive, halt, nop, mrmov, irmov, binop, jmp, cmov, call, ret, push, pop,
+    choice((
+        label, directive, halt, nop, rrmov, irmov, rmmov, mrmov, binop, jmp, cmov, call, ret, push,
+        pop,
     ))
     .padded()
     .repeated()
-    .collect::<Vec<_>>();
-
-    program
+    .collect::<Vec<_>>()
 }
