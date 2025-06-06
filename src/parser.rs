@@ -36,11 +36,7 @@ fn imm_parser<'a>() -> Boxed<'a, 'a, &'a str, ImmType> {
     )))
     .padded();
 
-    choice((
-        just('-').then(pos_imm.clone()).map(|(_, imm)| -imm),
-        pos_imm,
-    ))
-    .boxed()
+    choice((just('-').then(pos_imm).map(|(_, imm)| -imm), pos_imm)).boxed()
 }
 
 /// Parses either D(reg) or reg
@@ -66,7 +62,7 @@ pub fn mk_parser<'a>() -> impl Parser<'a, &'a str, Vec<AssemblyLine<'a>>> {
     let imm = imm_parser();
 
     let lab_or_imm = choice((
-        dollar_imm.clone().map(LabOrImm::Immediate),
+        dollar_imm.map(LabOrImm::Immediate),
         text::ascii::ident().map(LabOrImm::Labelled),
     ))
     .padded();
@@ -77,17 +73,13 @@ pub fn mk_parser<'a>() -> impl Parser<'a, &'a str, Vec<AssemblyLine<'a>>> {
         .map(AssemblyLine::Label);
 
     let directive = choice((just(".align"), just(".quad")))
+        .padded()
         .then(imm.clone())
         .map(|(dir, imm)| AssemblyLine::Directive(dir, imm));
 
     let halt = keyword("halt").to(AssemblyLine::Halt);
 
     let nop = keyword("nop").to(AssemblyLine::Nop);
-
-    let rrmov = keyword("rrmovq")
-        .ignore_then(reg.clone())
-        .then(just(',').ignore_then(reg.clone()))
-        .map(|(src, dst)| AssemblyLine::Rrmov(src, dst));
 
     let irmov = text::ascii::keyword("irmovq")
         .ignore_then(lab_or_imm.clone())
@@ -137,7 +129,7 @@ pub fn mk_parser<'a>() -> impl Parser<'a, &'a str, Vec<AssemblyLine<'a>>> {
         keyword("cmovg").to(CondOp::G),
     ))
     .then(reg.clone())
-    .then(reg.clone())
+    .then(just(',').ignore_then(reg.clone()))
     .map(|((op, src), dst)| AssemblyLine::Cmov(op, src, dst));
 
     let call = keyword("call")
@@ -155,8 +147,7 @@ pub fn mk_parser<'a>() -> impl Parser<'a, &'a str, Vec<AssemblyLine<'a>>> {
         .map(AssemblyLine::Pop);
 
     choice((
-        label, directive, halt, nop, rrmov, irmov, rmmov, mrmov, binop, jmp, cmov, call, ret, push,
-        pop,
+        label, directive, halt, nop, rmmov, irmov, mrmov, binop, jmp, cmov, call, ret, push, pop,
     ))
     .padded()
     .repeated()

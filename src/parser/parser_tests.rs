@@ -61,23 +61,26 @@ fn test_parse_directive_hex() {
 }
 
 #[test]
+fn test_parse_neg_quad() {
+    let src = ".quad -42";
+    let parsed = mk_parser().parse(src).into_output().unwrap();
+    assert_eq!(parsed.len(), 1);
+    match &parsed[0] {
+        AssemblyLine::Directive(dir, val) => {
+            assert_eq!(*dir, ".quad");
+            assert_eq!(*val, -42);
+        }
+        _ => panic!("Expected directive"),
+    }
+}
+
+#[test]
 fn test_parse_halt_nop() {
     let src = "halt\nnop";
     let parsed = mk_parser().parse(src).into_output().unwrap();
     assert_eq!(parsed.len(), 2);
     matches!(parsed[0], AssemblyLine::Halt);
     matches!(parsed[1], AssemblyLine::Nop);
-}
-
-#[test]
-fn test_parse_rrmov() {
-    let src = "rrmovq %rax, %rbx";
-    let parsed = mk_parser().parse(src).into_output().unwrap();
-    assert_eq!(parsed.len(), 1);
-    match &parsed[0] {
-        AssemblyLine::Rrmov(Register::Rax, Register::Rbx) => {}
-        _ => panic!("Expected rrmovq"),
-    }
 }
 
 #[test]

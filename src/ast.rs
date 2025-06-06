@@ -1,5 +1,5 @@
 pub type ImmType = i64;
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub enum Register {
     Rax = 0,
     Rbx = 1,
@@ -16,13 +16,13 @@ pub enum Register {
     R12 = 12,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub enum LabOrImm<'a> {
     Labelled(&'a str),
     Immediate(ImmType),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub enum BinaryOp {
     Add = 0,
     Sub = 1,
@@ -30,7 +30,7 @@ pub enum BinaryOp {
     Xor = 3,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub enum CondOp {
     Uncon = 0,
     Le = 1,
@@ -41,14 +41,13 @@ pub enum CondOp {
     G = 6,
 }
 
-#[derive(Debug, Clone)]
-/// Represents a label in the assembly code.
+#[derive(Debug, Clone, Copy)]
+/// Represents a line in the assembly code.
 pub enum AssemblyLine<'a> {
     Label(&'a str),
     Directive(&'a str, ImmType),
     Halt,
     Nop,
-    Rrmov(Register, Register),
     Irmov(LabOrImm<'a>, Register),
     Rmmov(Register, ImmType, Register),
     Mrmov(ImmType, Register, Register),
