@@ -1,5 +1,7 @@
+mod ast_display;
+
 pub type ImmType = i64;
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Register {
     Rax = 0,
     Rbx = 1,
@@ -16,13 +18,13 @@ pub enum Register {
     R12 = 12,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum LabOrImm<'a> {
     Labelled(&'a str),
     Immediate(ImmType),
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum BinaryOp {
     Add = 0,
     Sub = 1,
@@ -30,7 +32,7 @@ pub enum BinaryOp {
     Xor = 3,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum CondOp {
     Uncon = 0,
     Le = 1,
@@ -41,7 +43,7 @@ pub enum CondOp {
     G = 6,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 /// Represents a line in the assembly code.
 pub enum AssemblyLine<'a> {
     Label(&'a str),

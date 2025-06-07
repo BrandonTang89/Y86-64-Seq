@@ -26,11 +26,19 @@ fn main() {
     println!("=========================");
     println!("Generated Code:");
     println!("=========================");
-    for (line, (start, end)) in parse_result.iter().zip(assembly_result.line_ranges.iter()) {
-        eprintln!(
-            "{:<30}: {}",
-            format!("{:?}", line),
-            assembly_result.bytes[*start..*end]
+
+    let line_width = parse_result
+        .iter()
+        .map(|line| format!("{}", line).len())
+        .max()
+        .unwrap_or(0)
+        + 2; // Add padding
+
+    for (&line, &(start, end)) in parse_result.iter().zip(assembly_result.line_ranges.iter()) {
+        println!(
+            "{:line_width$} | {}",
+            format!("{}", line),
+            assembly_result.bytes[start..end]
                 .iter()
                 .map(|b| format!("{:02x}", b))
                 .collect::<Vec<_>>()

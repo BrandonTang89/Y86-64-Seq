@@ -14,8 +14,8 @@ cargo run -- <path-to-asm-file> (<output-file>)
 
 ### Example Usage
 ```bash
-cargo run -- examples/hello.ys
-xxd examples/hello.yso
+cargo run -- examples/add_numbers.ys
+xxd examples/add_numbers.yso
 ```
 
 Should give you an output like this:
