@@ -55,6 +55,7 @@ fn displaced_reg_parser<'a>() -> Boxed<'a, 'a, &'a str, (ImmType, Register)> {
     .boxed()
 }
 
+/// Constructs a parser for the Y86-64 assembly language
 pub fn mk_parser<'a>() -> impl Parser<'a, &'a str, Vec<AssemblyLine<'a>>> {
     let reg = reg_parser();
 

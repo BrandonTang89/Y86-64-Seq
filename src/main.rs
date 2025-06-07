@@ -1,6 +1,7 @@
+use colour::println_bold;
 use y86_seq::parse_and_gen;
 fn main() {
-    println!("Y86-64 Assembler");
+    println_bold!("Y86-64 Assembler");
     let src_file = std::env::args().nth(1).expect("No input file provided");
     let dest_file = match std::env::args().nth(2) {
         Some(file) => file,
@@ -9,6 +10,7 @@ fn main() {
             default_dest
         }
     };
+    println!("Input file: {}", src_file);
     let src_content = std::fs::read_to_string(&src_file).expect("Failed to read input file");
 
     println!("=========================");
