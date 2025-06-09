@@ -1,4 +1,4 @@
-use colour::println_bold;
+use colour::{println_bold, red_ln};
 use y86_seq::parse_and_gen;
 fn main() {
     println_bold!("Y86-64 Assembler");
@@ -20,7 +20,7 @@ fn main() {
 
     let res = parse_and_gen(&src_content);
     if let Err(e) = res {
-        eprintln!("Error: {}", e);
+        red_ln!("{}", e);
         std::process::exit(1);
     }
     let (parse_result, assembly_result) = res.unwrap();

@@ -3,7 +3,7 @@ use chumsky::prelude::*;
 use chumsky::text::ascii::keyword;
 mod parser_tests;
 
-fn reg_parser<'a>() -> Boxed<'a, 'a, &'a str, Register> {
+fn reg_parser<'a>() -> Boxed<'a, 'a, &'a str, Register, extra::Err<Simple<'a, char>>> {
     just('%')
         .ignore_then(choice((
             keyword("rax").to(Register::Rax),
@@ -25,7 +25,7 @@ fn reg_parser<'a>() -> Boxed<'a, 'a, &'a str, Register> {
 }
 
 /// Handles parsing positive and negative decimals and hexadecimals
-fn imm_parser<'a>() -> Boxed<'a, 'a, &'a str, ImmType> {
+fn imm_parser<'a>() -> Boxed<'a, 'a, &'a str, ImmType, extra::Err<Simple<'a, char>>> {
     let pos_imm = (choice((
         just("0x")
             .ignore_then(text::digits(16).to_slice())
@@ -40,7 +40,7 @@ fn imm_parser<'a>() -> Boxed<'a, 'a, &'a str, ImmType> {
 }
 
 /// Parses either D(reg) or reg
-fn displaced_reg_parser<'a>() -> Boxed<'a, 'a, &'a str, (ImmType, Register)> {
+fn displaced_reg_parser<'a>() -> Boxed<'a, 'a, &'a str, (ImmType, Register), extra::Err<Simple<'a, char>>> {
     let reg = reg_parser();
     let imm = imm_parser();
 
@@ -56,7 +56,7 @@ fn displaced_reg_parser<'a>() -> Boxed<'a, 'a, &'a str, (ImmType, Register)> {
 }
 
 /// Constructs a parser for the Y86-64 assembly language
-pub fn mk_parser<'a>() -> impl Parser<'a, &'a str, Vec<AssemblyLine<'a>>> {
+pub fn mk_parser<'a>() -> impl Parser<'a, &'a str, Vec<AssemblyLine<'a>>, extra::Err<Simple<'a, char>>> {
     let reg = reg_parser();
 
     let dollar_imm = just('$').ignore_then(imm_parser());
