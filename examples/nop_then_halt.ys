@@ -1,3 +1,4 @@
 nop
 nop
+rrmovq %rax, %rbx
 halt

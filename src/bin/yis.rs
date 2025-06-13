@@ -12,12 +12,34 @@ fn main() {
         Mmap::map(&file).unwrap_or_else(|_| panic!("Failed to memory-map the file: {}", src_file))
     };
 
-    let (dissassembly, _log, _final_state) = simulate::<1024>(&mmap);
+    let (dissassembly, log, _final_state) = simulate::<1024>(&mmap);
+    let diassembly_width = dissassembly
+        .iter()
+        .map(|(_, line)| format!("{}", line).len())
+        .max()
+        .unwrap_or(0)
+        + 2; // Add padding
 
     println!("=========================");
-    println!("Disassembly:");
+    println!("Simulation:");
     println!("=========================");
-    for instruction in dissassembly {
-        println!("{}", instruction);
+    for ((addr, instruction), changes) in dissassembly.into_iter().zip(log) {
+        println!(
+            "{} {:diassembly_width$} | {}",
+            format!("{:04x}", addr),
+            format!("{}", instruction),
+            changes
+                .first()
+                .map(|change| change.to_string())
+                .unwrap_or_else(Default::default)
+        );
+        for change in changes.iter().skip(1) {
+            println!(
+                "{:04} {:diassembly_width$} | {}",
+                "",
+                "",
+                change.to_string()
+            );
+        }
     }
 }

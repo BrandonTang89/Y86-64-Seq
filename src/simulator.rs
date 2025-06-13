@@ -1,9 +1,11 @@
-use crate::ast::Instruction;
-use crate::ast::{self, OwnedInstruction};
+use crate::ast::{self, CondOp, OwnedInstruction};
+use crate::ast::{Instruction, Register};
 
-pub type Disassembly = Vec<OwnedInstruction>;
+pub type Disassembly = Vec<(i64, OwnedInstruction)>;
 pub type Changes = Vec<AtomicChange>;
 pub type Log = Vec<Changes>;
+
+mod atomic_change_display;
 
 pub enum AtomicChange {
     /// A change in the value of a register.
@@ -86,6 +88,13 @@ impl<'a, const MEM_SIZE: usize> Simulator<'a, MEM_SIZE> {
             }
         }
     }
+
+    fn condition_ok(&self, cond: CondOp) -> bool {
+        match cond {
+            CondOp::Uncon => true,
+            _ => todo!(),
+        }
+    }
     /// Executes the given instruction until it halts
     pub fn run_single(&mut self) -> Option<(OwnedInstruction, Changes)> {
         let fetch_result = self.fetch_decode();
@@ -94,7 +103,7 @@ impl<'a, const MEM_SIZE: usize> Simulator<'a, MEM_SIZE> {
             return None;
         }
         let instruction = fetch_result.unwrap();
-        let changes;
+        let mut changes;
         match instruction {
             Instruction::Halt => {
                 changes = vec![AtomicChange::State {
@@ -106,6 +115,19 @@ impl<'a, const MEM_SIZE: usize> Simulator<'a, MEM_SIZE> {
                     ip: self.instruction_pointer + 1,
                 }];
             }
+            Instruction::Cmov(cond, r1, r2) => {
+                if self.condition_ok(cond) {
+                    changes = vec![AtomicChange::Register {
+                        reg: r1,
+                        value: self.registers[r2 as usize],
+                    }];
+                } else {
+                    changes = vec![];
+                }
+                changes.push(AtomicChange::InstructionPointer {
+                    ip: self.instruction_pointer + 1,
+                });
+            }
             // Handle other instructions...
             _ => todo!(),
         }
@@ -113,11 +135,26 @@ impl<'a, const MEM_SIZE: usize> Simulator<'a, MEM_SIZE> {
         Some((instruction, changes))
     }
 
+    fn fetch_decode_regs(&self, ptr: i64) -> Result<(Register, Register), String> {
+        let byte = self
+            .source
+            .get(ptr as usize)
+            .ok_or_else(|| format!("IP Out of Range: {}", ptr))?;
+
+        let Ok(reg_a) = Register::try_from((*byte >> 4) as u8) else {
+            return Err(format!("Invalid register A: {}", byte >> 4));
+        };
+        let Ok(reg_b) = Register::try_from((*byte & 0x0F) as u8) else {
+            return Err(format!("Invalid register B: {}", byte & 0x0F));
+        };
+        Ok((reg_a, reg_b))
+    }
+
     fn fetch_decode(&self) -> Result<OwnedInstruction, String> {
         let byte0 = self
             .source
             .get(self.instruction_pointer as usize)
-            .ok_or_else(|| format!("Instruction Pointer of Range: {}", self.instruction_pointer))?;
+            .ok_or_else(|| format!("IP Out of Range: {}", self.instruction_pointer))?;
 
         let opcode = byte0 >> 4;
         let _func = byte0 & 0x0F;
@@ -125,6 +162,10 @@ impl<'a, const MEM_SIZE: usize> Simulator<'a, MEM_SIZE> {
         match opcode {
             0x0 => Ok(Instruction::Halt),
             0x1 => Ok(Instruction::Nop),
+            0x2 => {
+                let (r1, r2) = self.fetch_decode_regs(self.instruction_pointer + 1)?;
+                Ok(Instruction::Cmov(CondOp::Uncon, r1, r2))
+            }
             // Add more opcodes as needed
             _ => Err(format!("Unknown opcode: {:#x}", opcode)),
         }

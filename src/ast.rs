@@ -18,6 +18,30 @@ pub enum Register {
     R12 = 12,
 }
 
+impl TryFrom<u8> for Register {
+    type Error = String;
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            0 => Ok(Register::Rax),
+            1 => Ok(Register::Rbx),
+            2 => Ok(Register::Rcx),
+            3 => Ok(Register::Rdx),
+            4 => Ok(Register::Rdi),
+            5 => Ok(Register::Rsi),
+            6 => Ok(Register::Rsp),
+            7 => Ok(Register::Rbp),
+            8 => Ok(Register::R8),
+            9 => Ok(Register::R9),
+            10 => Ok(Register::R10),
+            11 => Ok(Register::R11),
+            12 => Ok(Register::R12),
+            _ => Err(format!("Invalid register value: {}", value)),
+        }
+    }
+    
+}
+
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum LabOrImm<S> {
     Labelled(S),

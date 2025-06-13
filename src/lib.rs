@@ -68,11 +68,12 @@ pub fn simulate<'a, const MEM_SIZE: usize>(src: &'a [u8]) -> SimulationResult<'a
     let mut log = Log::new();
     let mut disassembly_vec = Disassembly::new();
     loop {
+        let current_ip = state.instruction_pointer;
         let Some((instr, changes)) = state.run_single() else {
             break;
         };
         log.push(changes);
-        disassembly_vec.push(instr);
+        disassembly_vec.push((current_ip, instr));
 
         println!("Last Line: {:?}", disassembly_vec.last());
 
@@ -80,5 +81,5 @@ pub fn simulate<'a, const MEM_SIZE: usize>(src: &'a [u8]) -> SimulationResult<'a
             return (disassembly_vec, log, state);
         }
     }
-    todo!();
+    unreachable!();
 }
