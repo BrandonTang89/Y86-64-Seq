@@ -56,7 +56,7 @@ fn displaced_reg_parser<'a>() -> Boxed<'a, 'a, &'a str, (ImmType, Register), ext
 }
 
 /// Constructs a parser for the Y86-64 assembly language
-pub fn mk_parser<'a>() -> impl Parser<'a, &'a str, Vec<AssemblyLine<'a>>, extra::Err<Simple<'a, char>>> {
+pub fn mk_parser<'a>() -> impl Parser<'a, &'a str, Vec<BorrowedInstruction<'a>>, extra::Err<Simple<'a, char>>> {
     let reg = reg_parser();
 
     let dollar_imm = just('$').ignore_then(imm_parser());
@@ -71,31 +71,31 @@ pub fn mk_parser<'a>() -> impl Parser<'a, &'a str, Vec<AssemblyLine<'a>>, extra:
     let label = text::ascii::ident()
         .then_ignore(just(':'))
         .padded()
-        .map(AssemblyLine::Label);
+        .map(Instruction::Label);
 
     let directive = choice((just(".align"), just(".quad")))
         .padded()
         .then(imm.clone())
-        .map(|(dir, imm)| AssemblyLine::Directive(dir, imm));
+        .map(|(dir, imm)| Instruction::Directive(dir, imm));
 
-    let halt = keyword("halt").to(AssemblyLine::Halt);
+    let halt = keyword("halt").to(Instruction::Halt);
 
-    let nop = keyword("nop").to(AssemblyLine::Nop);
+    let nop = keyword("nop").to(Instruction::Nop);
 
     let irmov = text::ascii::keyword("irmovq")
         .ignore_then(lab_or_imm.clone())
         .then(just(',').ignore_then(reg.clone()))
-        .map(|(imm, reg)| AssemblyLine::Irmov(imm, reg));
+        .map(|(imm, reg)| Instruction::Irmov(imm, reg));
 
     let rmmov = keyword("rmmovq")
         .ignore_then(reg.clone())
         .then(just(',').ignore_then(displaced_reg_parser()))
-        .map(|(src, (offset, base))| AssemblyLine::Rmmov(src, offset, base));
+        .map(|(src, (offset, base))| Instruction::Rmmov(src, offset, base));
 
     let mrmov = keyword("mrmovq").ignore_then(
         displaced_reg_parser()
             .then(just(',').ignore_then(reg.clone()))
-            .map(|((offset, base), dest)| AssemblyLine::Mrmov(offset, base, dest)),
+            .map(|((offset, base), dest)| Instruction::Mrmov(offset, base, dest)),
     );
 
     let binop = choice((
@@ -106,7 +106,7 @@ pub fn mk_parser<'a>() -> impl Parser<'a, &'a str, Vec<AssemblyLine<'a>>, extra:
     ))
     .then(reg.clone())
     .then(just(',').ignore_then(reg.clone()))
-    .map(|((op, src), dst)| AssemblyLine::Binop(op, src, dst));
+    .map(|((op, src), dst)| Instruction::Binop(op, src, dst));
 
     let jmp = choice((
         keyword("jmp").to(CondOp::Uncon),
@@ -118,7 +118,7 @@ pub fn mk_parser<'a>() -> impl Parser<'a, &'a str, Vec<AssemblyLine<'a>>, extra:
         keyword("jg").to(CondOp::G),
     ))
     .then(lab_or_imm.clone())
-    .map(|(op, addr)| AssemblyLine::Jmp(op, addr));
+    .map(|(op, addr)| Instruction::Jmp(op, addr));
 
     let cmov = choice((
         keyword("rrmovq").to(CondOp::Uncon),
@@ -131,21 +131,21 @@ pub fn mk_parser<'a>() -> impl Parser<'a, &'a str, Vec<AssemblyLine<'a>>, extra:
     ))
     .then(reg.clone())
     .then(just(',').ignore_then(reg.clone()))
-    .map(|((op, src), dst)| AssemblyLine::Cmov(op, src, dst));
+    .map(|((op, src), dst)| Instruction::Cmov(op, src, dst));
 
     let call = keyword("call")
         .ignore_then(lab_or_imm.clone())
-        .map(AssemblyLine::Call);
+        .map(Instruction::Call);
 
-    let ret = keyword("ret").to(AssemblyLine::Ret);
+    let ret = keyword("ret").to(Instruction::Ret);
 
     let push = keyword("pushq")
         .ignore_then(reg.clone())
-        .map(AssemblyLine::Push);
+        .map(Instruction::Push);
 
     let pop = keyword("popq")
         .ignore_then(reg.clone())
-        .map(AssemblyLine::Pop);
+        .map(Instruction::Pop);
 
     choice((
         label, directive, halt, nop, rmmov, irmov, mrmov, binop, jmp, cmov, call, ret, push, pop,

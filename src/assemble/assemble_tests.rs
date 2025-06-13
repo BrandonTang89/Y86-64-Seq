@@ -1,6 +1,6 @@
 #[cfg(test)]
 use super::*;
-use crate::ast::AssemblyLine;
+use crate::ast::Instruction;
 use crate::parser::mk_parser;
 use chumsky::prelude::*;
 
@@ -10,7 +10,7 @@ fn test_code_gen_quad() {
     let parsed = mk_parser().parse(src).into_output().unwrap();
     assert_eq!(parsed.len(), 1);
     match &parsed[0] {
-        AssemblyLine::Directive(dir, val) => {
+        Instruction::Directive(dir, val) => {
             assert_eq!(*dir, ".quad");
             assert_eq!(*val, 31); // 0x1F in decimal
         }

@@ -27,7 +27,7 @@ fn test_parse_label() {
     let parsed = mk_parser().parse(src).into_output().unwrap();
     assert_eq!(parsed.len(), 1);
     match &parsed[0] {
-        AssemblyLine::Label(label) => assert_eq!(*label, "start"),
+        Instruction::Label(label) => assert_eq!(*label, "start"),
         _ => panic!("Expected label"),
     }
 }
@@ -38,7 +38,7 @@ fn test_parse_directive() {
     let parsed = mk_parser().parse(src).into_output().unwrap();
     assert_eq!(parsed.len(), 1);
     match &parsed[0] {
-        AssemblyLine::Directive(dir, val) => {
+        Instruction::Directive(dir, val) => {
             assert_eq!(*dir, ".align");
             assert_eq!(*val, 8);
         }
@@ -52,7 +52,7 @@ fn test_parse_directive_hex() {
     let parsed = mk_parser().parse(src).into_output().unwrap();
     assert_eq!(parsed.len(), 1);
     match &parsed[0] {
-        AssemblyLine::Directive(dir, val) => {
+        Instruction::Directive(dir, val) => {
             assert_eq!(*dir, ".quad");
             assert_eq!(*val, 31); // 0x1F in decimal
         }
@@ -66,7 +66,7 @@ fn test_parse_neg_quad() {
     let parsed = mk_parser().parse(src).into_output().unwrap();
     assert_eq!(parsed.len(), 1);
     match &parsed[0] {
-        AssemblyLine::Directive(dir, val) => {
+        Instruction::Directive(dir, val) => {
             assert_eq!(*dir, ".quad");
             assert_eq!(*val, -42);
         }
@@ -79,8 +79,8 @@ fn test_parse_halt_nop() {
     let src = "halt\nnop";
     let parsed = mk_parser().parse(src).into_output().unwrap();
     assert_eq!(parsed.len(), 2);
-    matches!(parsed[0], AssemblyLine::Halt);
-    matches!(parsed[1], AssemblyLine::Nop);
+    matches!(parsed[0], Instruction::Halt);
+    matches!(parsed[1], Instruction::Nop);
 }
 
 #[test]
@@ -89,7 +89,7 @@ fn test_parse_rmmov() {
     let parsed = mk_parser().parse(src).into_output().unwrap();
     assert_eq!(parsed.len(), 1);
     match &parsed[0] {
-        AssemblyLine::Rmmov(Register::Rax, 8, Register::Rbx) => {}
+        Instruction::Rmmov(Register::Rax, 8, Register::Rbx) => {}
         _ => panic!("Expected rmmovq"),
     }
 }
@@ -100,7 +100,7 @@ fn test_parse_irmov() {
     let parsed = mk_parser().parse(src).into_output().unwrap();
     assert_eq!(parsed.len(), 1);
     match &parsed[0] {
-        AssemblyLine::Irmov(LabOrImm::Immediate(42), Register::Rax) => {}
+        Instruction::Irmov(LabOrImm::Immediate(42), Register::Rax) => {}
         _ => panic!("Expected irmovq"),
     }
 }
@@ -111,7 +111,7 @@ fn test_parse_binop() {
     let parsed = mk_parser().parse(src).into_output().unwrap();
     assert_eq!(parsed.len(), 1);
     match &parsed[0] {
-        AssemblyLine::Binop(BinaryOp::Add, Register::Rax, Register::Rbx) => {}
+        Instruction::Binop(BinaryOp::Add, Register::Rax, Register::Rbx) => {}
         _ => panic!("Expected addq"),
     }
 }
@@ -122,7 +122,7 @@ fn test_parse_jmp() {
     let parsed = mk_parser().parse(src).into_output().unwrap();
     assert_eq!(parsed.len(), 1);
     match &parsed[0] {
-        AssemblyLine::Jmp(CondOp::Uncon, LabOrImm::Labelled("somewhere")) => {}
+        Instruction::Jmp(CondOp::Uncon, LabOrImm::Labelled("somewhere")) => {}
         _ => panic!("Expected jmp"),
     }
 }
@@ -133,7 +133,7 @@ fn test_parse_mrmov_displace_reg() {
     let parsed = mk_parser().parse(src).into_output().unwrap();
     assert_eq!(parsed.len(), 1);
     match &parsed[0] {
-        AssemblyLine::Mrmov(8, Register::Rbp, Register::Rax) => {}
+        Instruction::Mrmov(8, Register::Rbp, Register::Rax) => {}
         _ => panic!("Expected mrmovq"),
     }
 }
@@ -144,7 +144,7 @@ fn test_parse_mrmov_negative_displace() {
     let parsed = mk_parser().parse(src).into_output().unwrap();
     assert_eq!(parsed.len(), 1);
     match &parsed[0] {
-        AssemblyLine::Mrmov(-8, Register::Rbp, Register::Rax) => {}
+        Instruction::Mrmov(-8, Register::Rbp, Register::Rax) => {}
         _ => panic!("Expected mrmovq"),
     }
 }
@@ -155,7 +155,7 @@ fn test_parse_mrmov_reg() {
     let parsed = mk_parser().parse(src).into_output().unwrap();
     assert_eq!(parsed.len(), 1);
     match &parsed[0] {
-        AssemblyLine::Mrmov(0, Register::Rbp, Register::Rax) => {}
+        Instruction::Mrmov(0, Register::Rbp, Register::Rax) => {}
         _ => panic!("Expected mrmovq"),
     }
 }
@@ -165,8 +165,8 @@ fn test_parse_push_pop() {
     let src = "pushq %rbx\npopq %rcx";
     let parsed = mk_parser().parse(src).into_output().unwrap();
     assert_eq!(parsed.len(), 2);
-    matches!(parsed[0], AssemblyLine::Push(Register::Rbx));
-    matches!(parsed[1], AssemblyLine::Pop(Register::Rcx));
+    matches!(parsed[0], Instruction::Push(Register::Rbx));
+    matches!(parsed[1], Instruction::Pop(Register::Rcx));
 }
 
 #[test]

@@ -23,7 +23,7 @@ impl fmt::Display for Register {
     }
 }
 
-impl fmt::Display for LabOrImm<'_> {
+impl<S: fmt::Display> fmt::Display for LabOrImm<S> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             LabOrImm::Labelled(label) => write!(f, "{}", label),
@@ -59,47 +59,47 @@ impl fmt::Display for CondOp {
     }
 }
 
-impl fmt::Display for AssemblyLine<'_> {
+impl<S: fmt::Display> fmt::Display for Instruction<S> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            AssemblyLine::Label(_) => {}
+            Instruction::Label(_) => {}
             _ => {
                 write!(f, "    ")?; // Indent assembly lines
             }
         }
         match self {
-            AssemblyLine::Label(label) => write!(f, "{}:", label),
-            AssemblyLine::Directive(directive, imm) => write!(f, "{} {}", directive, imm),
-            AssemblyLine::Halt => write!(f, "halt"),
-            AssemblyLine::Nop => write!(f, "nop"),
-            AssemblyLine::Irmov(lab_or_imm, reg) => write!(f, "irmov {}, {}", lab_or_imm, reg),
-            AssemblyLine::Rmmov(src_reg, imm, dest_reg) => {
+            Instruction::Label(label) => write!(f, "{}:", label),
+            Instruction::Directive(directive, imm) => write!(f, "{} {}", directive, imm),
+            Instruction::Halt => write!(f, "halt"),
+            Instruction::Nop => write!(f, "nop"),
+            Instruction::Irmov(lab_or_imm, reg) => write!(f, "irmov {}, {}", lab_or_imm, reg),
+            Instruction::Rmmov(src_reg, imm, dest_reg) => {
                 write!(f, "rmmov {}, {}({})", src_reg, imm, dest_reg)
             }
-            AssemblyLine::Mrmov(imm, src_reg, dest_reg) => {
+            Instruction::Mrmov(imm, src_reg, dest_reg) => {
                 write!(f, "mrmov {}({}) {}", imm, src_reg, dest_reg)
             }
-            AssemblyLine::Binop(op, src_reg, dest_reg) => {
+            Instruction::Binop(op, src_reg, dest_reg) => {
                 write!(f, "{} {}, {}", op, src_reg, dest_reg)
             }
-            AssemblyLine::Jmp(cond_op, lab_or_imm) => {
+            Instruction::Jmp(cond_op, lab_or_imm) => {
                 if cond_op == &CondOp::Uncon {
                     write!(f, "jmp {}", lab_or_imm)
                 } else {
                     write!(f, "j{} {}", cond_op, lab_or_imm)
                 }
             }
-            AssemblyLine::Cmov(cond_op, src_reg, dest_reg) => {
+            Instruction::Cmov(cond_op, src_reg, dest_reg) => {
                 if cond_op == &CondOp::Uncon {
                     write!(f, "mov {}, {}", src_reg, dest_reg)
                 } else {
                     write!(f, "cmov_{} {}, {}", cond_op, src_reg, dest_reg)
                 }
             }
-            AssemblyLine::Call(lab_or_imm) => write!(f, "call {}", lab_or_imm),
-            AssemblyLine::Ret => write!(f, "ret"),
-            AssemblyLine::Push(reg) => write!(f, "push {}", reg),
-            AssemblyLine::Pop(reg) => write!(f, "pop {}", reg),
+            Instruction::Call(lab_or_imm) => write!(f, "call {}", lab_or_imm),
+            Instruction::Ret => write!(f, "ret"),
+            Instruction::Push(reg) => write!(f, "push {}", reg),
+            Instruction::Pop(reg) => write!(f, "pop {}", reg),
         }
     }
 }

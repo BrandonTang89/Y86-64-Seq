@@ -19,8 +19,8 @@ pub enum Register {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub enum LabOrImm<'a> {
-    Labelled(&'a str),
+pub enum LabOrImm<S> {
+    Labelled(S),
     Immediate(ImmType),
 }
 
@@ -45,19 +45,22 @@ pub enum CondOp {
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 /// Represents a line in the assembly code.
-pub enum AssemblyLine<'a> {
-    Label(&'a str),
-    Directive(&'a str, ImmType),
+pub enum Instruction<S> {
+    Label(S),
+    Directive(S, ImmType),
     Halt,
     Nop,
-    Irmov(LabOrImm<'a>, Register),
+    Irmov(LabOrImm<S>, Register),
     Rmmov(Register, ImmType, Register),
     Mrmov(ImmType, Register, Register),
     Binop(BinaryOp, Register, Register),
-    Jmp(CondOp, LabOrImm<'a>),
+    Jmp(CondOp, LabOrImm<S>),
     Cmov(CondOp, Register, Register),
-    Call(LabOrImm<'a>),
+    Call(LabOrImm<S>),
     Ret,
     Push(Register),
     Pop(Register),
 }
+
+pub type BorrowedInstruction<'a> = Instruction<&'a str>;
+pub type OwnedInstruction = Instruction<String>;

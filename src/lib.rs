@@ -1,3 +1,4 @@
+// === Assembler ===
 mod assemble;
 pub(crate) mod ast;
 mod parser;
@@ -5,11 +6,10 @@ mod parser;
 use crate::assemble::{AssembledCode, gen_code};
 use crate::parser::mk_parser;
 use chumsky::prelude::*;
-
-type ParseResult<'a> = Vec<ast::AssemblyLine<'a>>;
+type ParseResult<'a> = Vec<ast::BorrowedInstruction<'a>>;
 
 /// Handles errors from the parser and formats them for display.
-fn handle_error<'a>(src_asm: &str, errors: Vec<chumsky::error::Simple<'a, char>>) -> String {
+fn handle_parse_errors<'a>(src_asm: &str, errors: Vec<chumsky::error::Simple<'a, char>>) -> String {
     let span = errors.first().unwrap().span();
     let range = span.into_range();
     let found = errors.first().unwrap().found();
@@ -52,6 +52,33 @@ pub fn parse_and_gen(src_asm: &str) -> Result<(ParseResult, AssembledCode), Stri
         Ok((ast, assembled_code))
     } else {
         let errors = parse_result.into_errors();
-        Err(handle_error(src_asm, errors))
+        Err(handle_parse_errors(src_asm, errors))
     }
+}
+
+
+// === Simulator Module ===
+mod simulator;
+use crate::simulator::{Disassembly, Log, Simulator};
+
+type SimulationResult<'a, const MEM_SIZE: usize> = (Disassembly, Log, Simulator<'a, MEM_SIZE>);
+/// Run Simulator Until Halt or Error
+pub fn simulate<'a, const MEM_SIZE: usize>(src: &'a [u8]) -> SimulationResult<'a, MEM_SIZE> {
+    let mut state = Simulator::<'a, MEM_SIZE>::new(src);
+    let mut log = Log::new();
+    let mut disassembly_vec = Disassembly::new();
+    loop {
+        let Some((instr, changes)) = state.run_single() else {
+            break;
+        };
+        log.push(changes);
+        disassembly_vec.push(instr);
+
+        println!("Last Line: {:?}", disassembly_vec.last());
+
+        if state.state == simulator::Status::Halted {
+            return (disassembly_vec, log, state);
+        }
+    }
+    todo!();
 }

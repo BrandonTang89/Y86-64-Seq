@@ -9,12 +9,12 @@ Instructions and encoding can be found in `docs`.
 
 ## Usage
 ```bash
-cargo run -- <path-to-asm-file> (<output-file>)
+cargo run --bin yas -- <path-to-asm-file> (<output-file>)
 ```
 
 ### Example Usage
 ```bash
-cargo run -- examples/add_numbers.ys
+cargo run --bin yas -- examples/add_numbers.ys
 xxd examples/add_numbers.yso
 ```
 
@@ -35,4 +35,8 @@ Should give you an output like this:
 Uses Chumsky, a parser combinator library, to parse the Y86-64 assembly language. The assembler translates the parsed instructions into binary format according to the encoding rules specified in the documentation.
 
 # Instruction Level Simulator for Y86-64
-Todo.
+```bash
+cargo run --bin yis -- examples/add_numbers.yso
+```
+
+Uses a state machine to simulate the execution of the Y86-64 processor. Changes are recordered as a log and are printed, along with the final state of the registers and memory.
