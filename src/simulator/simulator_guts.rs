@@ -47,6 +47,9 @@ pub struct Simulator<'a, const MEM_SIZE: usize> {
     pub disassembly: Disassembly,
     /// Log of changes made during execution
     pub log: Log,
+
+    /// Index of the next change to next_to_commit
+    next_to_commit: usize, 
 }
 
 impl<'a, const MEM_SIZE: usize> Simulator<'a, MEM_SIZE> {
@@ -61,6 +64,7 @@ impl<'a, const MEM_SIZE: usize> Simulator<'a, MEM_SIZE> {
             condition_code: 0,
             disassembly: Disassembly::new(),
             log: Log::new(),
+            next_to_commit: 0,
         }
     }
 
@@ -71,8 +75,9 @@ impl<'a, const MEM_SIZE: usize> Simulator<'a, MEM_SIZE> {
         self.memory = [0; MEM_SIZE];
     }
 
-    fn apply_changes(&mut self, start: usize, end: usize) {
-        for (_, change) in self.log[start..end].iter() {
+    /// Applies all the uncommitted changes in the log to the simulator state.
+    fn apply_changes(&mut self) {
+        for (_, change) in self.log[self.next_to_commit..].iter() {
             match change {
                 &AtomicChange::Register { reg, value } => {
                     self.registers[reg as usize] = value;
@@ -96,6 +101,7 @@ impl<'a, const MEM_SIZE: usize> Simulator<'a, MEM_SIZE> {
                 }
             }
         }
+        self.next_to_commit = self.log.len();
     }
 
     fn condition_ok(&self, cond: CondOp) -> bool {
@@ -117,7 +123,6 @@ impl<'a, const MEM_SIZE: usize> Simulator<'a, MEM_SIZE> {
 
         let instr = &self.disassembly.last().unwrap().1;
         let id = self.disassembly.len() - 1;
-        let changes_start = self.log.len();
         match &instr {
             Instruction::Halt => {
                 self.log.push((
@@ -156,7 +161,7 @@ impl<'a, const MEM_SIZE: usize> Simulator<'a, MEM_SIZE> {
             // Handle other instructions...
             _ => todo!(),
         }
-        self.apply_changes(changes_start, self.log.len());
+        self.apply_changes();
     }
 
     fn fetch_decode_regs(&self, ptr: i64) -> Result<(Register, Register), String> {
@@ -193,5 +198,9 @@ impl<'a, const MEM_SIZE: usize> Simulator<'a, MEM_SIZE> {
             // Add more opcodes as needed
             _ => Err(format!("Unknown opcode: {:#x}", opcode)),
         }
+    }
+
+    pub fn is_halted(&self) -> bool {
+        matches!(self.state, Status::Halted)
     }
 }

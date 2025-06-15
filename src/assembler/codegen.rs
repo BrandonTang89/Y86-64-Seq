@@ -31,6 +31,7 @@ fn fill_imm_or_label(
 }
 
 pub struct AssembledCode {
+    /// The assembled code as a vector of bytes
     pub bytes: Vec<u8>,
 
     /// [start, end) byte locations for each instruction
