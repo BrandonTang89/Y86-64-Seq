@@ -1,5 +1,5 @@
 use colour::{println_bold, red_ln};
-use y86_seq::parse_and_gen;
+use y86_seq::assembler::parse_and_gen;
 fn main() {
     println_bold!("Y86-64 Assembler");
     let src_file = std::env::args().nth(1).expect("No input file provided");
@@ -36,7 +36,7 @@ fn main() {
         .unwrap_or(0)
         + 2; // Add padding
 
-    for (&line, &(start, end)) in parse_result.iter().zip(assembly_result.line_ranges.iter()) {
+    for (line, &(start, end)) in parse_result.iter().zip(assembly_result.line_ranges.iter()) {
         println!(
             "{:line_width$} | {}",
             format!("{}", line),

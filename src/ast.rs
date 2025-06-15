@@ -42,7 +42,7 @@ impl TryFrom<u8> for Register {
 }
 
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum LabOrImm<S> {
     Labelled(S),
     Immediate(ImmType),
@@ -67,7 +67,7 @@ pub enum CondOp {
     G = 6,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 /// Represents a line in the assembly code.
 pub enum Instruction<S> {
     Label(S),

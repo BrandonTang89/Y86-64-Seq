@@ -1,3 +1,14 @@
+[lib]
+doctest = false
+
+[[bin]]
+name = "yis"
+test = false
+
+[[bin]]
+name = "yas"
+test = false
+
 [package]
 name = "y86-seq"
 version = "0.1.0"
@@ -6,4 +17,5 @@ edition = "2024"
 [dependencies]
 chumsky = "0.10.1"
 colour = "2.1.0"
+itertools = "0.14.0"
 memmap2 = "0.9.5"

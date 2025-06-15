@@ -1,6 +1,6 @@
 pub use crate::ast::*;
 #[cfg(test)]
-mod assemble_tests;
+mod codegen_tests;
 
 fn fill_immediate_little_endian(output: &mut [u8], value: i64) {
     let bytes = value.to_le_bytes();
@@ -32,6 +32,8 @@ fn fill_imm_or_label(
 
 pub struct AssembledCode {
     pub bytes: Vec<u8>,
+
+    /// [start, end) byte locations for each instruction
     pub line_ranges: Vec<(usize, usize)>,
 }
 
@@ -120,7 +122,11 @@ pub fn gen_code<'a>(ast: &Vec<BorrowedInstruction<'a>>) -> Result<AssembledCode,
             Instruction::Irmov(imm, reg) => {
                 output_bytes[start] = 0x03 << 4; // IRMOVQ opcode
                 output_bytes[start + 1] = 0xF0 | *reg as u8;
-                fill_imm_or_label(&mut output_bytes[start + 2..], *imm, &label_locations)?;
+                fill_imm_or_label(
+                    &mut output_bytes[start + 2..],
+                    imm.clone(),
+                    &label_locations,
+                )?;
             }
             Instruction::Rmmov(src, offset, dst) => {
                 output_bytes[start] = 0x04 << 4; // RMMOVQ opcode
@@ -138,11 +144,19 @@ pub fn gen_code<'a>(ast: &Vec<BorrowedInstruction<'a>>) -> Result<AssembledCode,
             }
             Instruction::Jmp(cond, target) => {
                 output_bytes[start] = 0x07 << 4 | (*cond as u8); // JMP opcode
-                fill_imm_or_label(&mut output_bytes[start + 1..], *target, &label_locations)?;
+                fill_imm_or_label(
+                    &mut output_bytes[start + 1..],
+                    target.clone(),
+                    &label_locations,
+                )?;
             }
             Instruction::Call(target) => {
                 output_bytes[start] = 0x08 << 4; // CALL opcode
-                fill_imm_or_label(&mut output_bytes[start + 1..], *target, &label_locations)?;
+                fill_imm_or_label(
+                    &mut output_bytes[start + 1..],
+                    target.clone(),
+                    &label_locations,
+                )?;
             }
             Instruction::Ret => {
                 output_bytes[start] = 0x09 << 4; // RET opcode

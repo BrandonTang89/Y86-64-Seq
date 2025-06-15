@@ -1,7 +1,7 @@
 #[cfg(test)]
 use super::*;
+use crate::assembler::parser::mk_parser;
 use crate::ast::Instruction;
-use crate::parser::mk_parser;
 use chumsky::prelude::*;
 
 #[test]

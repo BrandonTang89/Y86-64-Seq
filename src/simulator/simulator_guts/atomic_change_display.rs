@@ -1,5 +1,5 @@
+use super::{AtomicChange, Status};
 use core::fmt;
-use crate::simulator::{AtomicChange, Status};
 
 impl fmt::Display for Status {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -9,7 +9,6 @@ impl fmt::Display for Status {
             Status::Error(msg) => write!(f, "Error: {}", msg),
         }
     }
-    
 }
 
 impl fmt::Display for AtomicChange {
@@ -22,5 +21,4 @@ impl fmt::Display for AtomicChange {
             AtomicChange::State { status } => write!(f, "Status = {}", status),
         }
     }
-    
 }
