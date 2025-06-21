@@ -1,5 +1,5 @@
 use crate::ast::{self, CondOp, OwnedInstruction};
-use crate::ast::{Instruction, Register};
+use crate::ast::{Instruction, LabOrImm, Register};
 mod atomic_change_display;
 
 /// Vec(instruction_pointer, instruction)
@@ -49,7 +49,7 @@ pub struct Simulator<'a, const MEM_SIZE: usize> {
     pub log: Log,
 
     /// Index of the next change to next_to_commit
-    next_to_commit: usize, 
+    next_to_commit: usize,
 }
 
 impl<'a, const MEM_SIZE: usize> Simulator<'a, MEM_SIZE> {
@@ -145,8 +145,8 @@ impl<'a, const MEM_SIZE: usize> Simulator<'a, MEM_SIZE> {
                     self.log.push((
                         id,
                         AtomicChange::Register {
-                            reg: *r1,
-                            value: self.registers[*r2 as usize],
+                            reg: *r2,
+                            value: self.registers[*r1 as usize],
                         },
                     ));
                 };
@@ -155,6 +155,25 @@ impl<'a, const MEM_SIZE: usize> Simulator<'a, MEM_SIZE> {
                     id,
                     AtomicChange::InstructionPointer {
                         ip: self.instruction_pointer + 1,
+                    },
+                ));
+            }
+            Instruction::Irmov(imm, regs) => {
+                let LabOrImm::Immediate(imm_val) = imm else {
+                    self.state = Status::Error("Invalid immediate value".to_string());
+                    return;
+                };
+                self.log.push((
+                    id,
+                    AtomicChange::Register {
+                        reg: *regs,
+                        value: *imm_val,
+                    },
+                ));
+                self.log.push((
+                    id,
+                    AtomicChange::InstructionPointer {
+                        ip: self.instruction_pointer + 10,
                     },
                 ));
             }
@@ -179,6 +198,37 @@ impl<'a, const MEM_SIZE: usize> Simulator<'a, MEM_SIZE> {
         Ok((reg_a, reg_b))
     }
 
+    fn fetch_decode_regb(&self, ptr: i64) -> Result<Register, String> {
+        let byte = self
+            .source
+            .get(ptr as usize)
+            .ok_or_else(|| format!("IP Out of Range: {}", ptr))?;
+
+        let Ok(reg_b) = Register::try_from(*byte & 0x0F) else {
+            return Err(format!("Invalid register B: {}", byte & 0x0F));
+        };
+
+        Ok(reg_b)
+    }
+
+    fn fetch_decode_imm(&self, ptr: i64) -> Result<i64, String> {
+        let bytes = self
+            .source
+            .get(ptr as usize..ptr as usize + 8)
+            .ok_or_else(|| format!("IP Out of Range: {}", ptr))?;
+
+        if bytes.len() < 8 {
+            return Err(format!("Immediate value too short at IP: {}", ptr));
+        }
+
+        let mut imm = 0i64;
+        for (i, &byte) in bytes.iter().enumerate() {
+            // Little-endian order
+            imm |= (byte as i64) << (i * 8);
+        }
+        Ok(imm)
+    }
+
     fn fetch_decode(&self) -> Result<OwnedInstruction, String> {
         let byte0 = self
             .source
@@ -194,6 +244,11 @@ impl<'a, const MEM_SIZE: usize> Simulator<'a, MEM_SIZE> {
             0x2 => {
                 let (r1, r2) = self.fetch_decode_regs(self.instruction_pointer + 1)?;
                 Ok(Instruction::Cmov(CondOp::Uncon, r1, r2))
+            }
+            0x3 => {
+                let r2 = self.fetch_decode_regb(self.instruction_pointer + 1)?;
+                let imm = self.fetch_decode_imm(self.instruction_pointer + 2)?;
+                Ok(Instruction::Irmov(LabOrImm::Immediate(imm), r2))
             }
             // Add more opcodes as needed
             _ => Err(format!("Unknown opcode: {:#x}", opcode)),
