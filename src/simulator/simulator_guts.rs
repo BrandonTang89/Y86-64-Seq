@@ -6,7 +6,7 @@ mod atomic_change_display;
 pub type Disassembly = Vec<(i64, OwnedInstruction)>;
 
 /// Vec<(instruction_number, changes)>
-/// (id, change) in Log means that Diassembly[id] caused change
+/// (id, change) in Log means that Diassembly\[id\] caused change
 pub type Log = Vec<(usize, AtomicChange)>;
 
 pub enum AtomicChange {
@@ -154,7 +154,7 @@ impl<'a, const MEM_SIZE: usize> Simulator<'a, MEM_SIZE> {
                 self.log.push((
                     id,
                     AtomicChange::InstructionPointer {
-                        ip: self.instruction_pointer + 1,
+                        ip: self.instruction_pointer + 2,
                     },
                 ));
             }
@@ -170,6 +170,23 @@ impl<'a, const MEM_SIZE: usize> Simulator<'a, MEM_SIZE> {
                         value: *imm_val,
                     },
                 ));
+                self.log.push((
+                    id,
+                    AtomicChange::InstructionPointer {
+                        ip: self.instruction_pointer + 10,
+                    },
+                ));
+            }
+            Instruction::Rmmov(src, disp, dst) => {
+                let value = self.registers[*src as usize];
+                let addr = disp + self.registers[*dst as usize];
+
+                if addr < 0 || (addr as usize) >= MEM_SIZE {
+                    self.state = Status::Error(format!("Memory address out of bounds: {}", addr));
+                    return;
+                }
+
+                self.log.push((id, AtomicChange::Memory { addr, value }));
                 self.log.push((
                     id,
                     AtomicChange::InstructionPointer {
@@ -249,6 +266,11 @@ impl<'a, const MEM_SIZE: usize> Simulator<'a, MEM_SIZE> {
                 let r2 = self.fetch_decode_regb(self.instruction_pointer + 1)?;
                 let imm = self.fetch_decode_imm(self.instruction_pointer + 2)?;
                 Ok(Instruction::Irmov(LabOrImm::Immediate(imm), r2))
+            }
+            0x4 => {
+                let (r1, r2) = self.fetch_decode_regs(self.instruction_pointer + 1)?;
+                let disp = self.fetch_decode_imm(self.instruction_pointer + 2)?;
+                Ok(Instruction::Rmmov(r1, disp, r2))
             }
             // Add more opcodes as needed
             _ => Err(format!("Unknown opcode: {:#x}", opcode)),

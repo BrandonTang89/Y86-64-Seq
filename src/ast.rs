@@ -38,9 +38,7 @@ impl TryFrom<u8> for Register {
             _ => Err(format!("Invalid register value: {}", value)),
         }
     }
-    
 }
-
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum LabOrImm<S> {
@@ -74,10 +72,19 @@ pub enum Instruction<S> {
     Directive(S, ImmType),
     Halt,
     Nop,
+
+    /// Source, Destination
     Irmov(LabOrImm<S>, Register),
+
+    /// Source, Displacement, Destination
     Rmmov(Register, ImmType, Register),
+
+    /// Displacement, Source, Destination
     Mrmov(ImmType, Register, Register),
+
+    /// Operator, Source, Destination
     Binop(BinaryOp, Register, Register),
+
     Jmp(CondOp, LabOrImm<S>),
     Cmov(CondOp, Register, Register),
     Call(LabOrImm<S>),

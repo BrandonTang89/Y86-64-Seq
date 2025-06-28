@@ -2,6 +2,7 @@ use itertools::Itertools;
 use memmap2::Mmap;
 use y86_seq::simulator::simulate;
 
+/// Memory-maps an input file and simulates the Y86-64 instructions contained within it.
 fn main() {
     colour::println_bold!("Y86-64 Instruction Level Simulator");
     let src_file = std::env::args().nth(1).expect("No input file provided");

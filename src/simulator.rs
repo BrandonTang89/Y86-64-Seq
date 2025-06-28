@@ -1,4 +1,4 @@
-mod simulator_guts;
+pub mod simulator_guts;
 use simulator_guts::Simulator;
 
 type SimulationResult<'a, const MEM_SIZE: usize> = Simulator<'a, MEM_SIZE>;

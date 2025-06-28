@@ -1,5 +1,7 @@
 use colour::{println_bold, red_ln};
 use y86_seq::assembler::parse_and_gen;
+
+/// Assembles An Input Y86-64 Assembly File into a Machine Code Object File
 fn main() {
     println_bold!("Y86-64 Assembler");
     let src_file = std::env::args().nth(1).expect("No input file provided");

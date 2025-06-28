@@ -2,4 +2,5 @@ nop
 nop
 irmovq $10, %rax
 rrmovq %rax, %rbx
+rmmovq %rbx, 8(%rax)
 halt
