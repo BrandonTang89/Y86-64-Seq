@@ -5,6 +5,8 @@ type SimulationResult<'a, const MEM_SIZE: usize> = Simulator<'a, MEM_SIZE>;
 /// Run Simulator Until Halt or Error
 pub fn simulate<'a, const MEM_SIZE: usize>(src: &'a [u8]) -> SimulationResult<'a, MEM_SIZE> {
     let mut state = Simulator::<'a, MEM_SIZE>::new(src);
+
+
     loop {
         state.run_single();
         let (ip, asm_line) = state.disassembly.last().unwrap();

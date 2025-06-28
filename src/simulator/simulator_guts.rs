@@ -55,8 +55,11 @@ pub struct Simulator<'a, const MEM_SIZE: usize> {
 impl<'a, const MEM_SIZE: usize> Simulator<'a, MEM_SIZE> {
     /// Creates a new simulator state with all registers set to 0 and memory initialized to 0.
     pub fn new(src: &'a [u8]) -> Self {
+        // initialise stack pointer to the end of memory
+        let mut registers = [0; 13];
+        registers[Register::Rsp as usize] = (MEM_SIZE - 8) as i64; // Stack pointer starts at the end of memory
         Self {
-            registers: [0; 13],
+            registers,
             instruction_pointer: 0,
             memory: [0; MEM_SIZE],
             source: src,
@@ -194,6 +197,91 @@ impl<'a, const MEM_SIZE: usize> Simulator<'a, MEM_SIZE> {
                     },
                 ));
             }
+            Instruction::Mrmov(disp, src, dst) => {
+                let addr = disp + self.registers[*src as usize];
+                if addr < 0 || (addr as usize) >= MEM_SIZE {
+                    self.state = Status::Error(format!("Memory address out of bounds: {}", addr));
+                    return;
+                }
+                let value = self.memory[addr as usize];
+                self.log
+                    .push((id, AtomicChange::Register { reg: *dst, value }));
+                self.log.push((
+                    id,
+                    AtomicChange::InstructionPointer {
+                        ip: self.instruction_pointer + 10,
+                    },
+                ));
+            }
+            Instruction::Call(target) => {
+                let LabOrImm::Immediate(imm) = target else {
+                    self.state = Status::Error("Invalid immediate value in Call".to_string());
+                    return;
+                };
+
+                if *imm < 0 || (*imm) >= MEM_SIZE as i64 {
+                    self.state = Status::Error(format!("Call address out of bounds: {}", imm));
+                    return;
+                }
+
+                let new_sp = self.registers[Register::Rsp as usize] - 8;
+                if new_sp < 0 || (new_sp as usize) >= MEM_SIZE {
+                    self.state = Status::Error(format!("Stack pointer out of bounds: {}", new_sp));
+                    return;
+                }
+
+                let ret_addr = self.instruction_pointer + 9;
+
+                self.log.push((
+                    id,
+                    AtomicChange::Memory {
+                        addr: new_sp,
+                        value: ret_addr,
+                    },
+                ));
+
+                self.log.push((
+                    id,
+                    AtomicChange::Register {
+                        reg: Register::Rsp,
+                        value: new_sp,
+                    },
+                ));
+
+                self.log
+                    .push((id, AtomicChange::InstructionPointer { ip: *imm }));
+            }
+            Instruction::Ret => {
+                let ret_addr = self
+                    .memory
+                    .get(self.registers[Register::Rsp as usize] as usize)
+                    .cloned()
+                    .unwrap_or_else(|| {
+                        self.state = Status::Error("Return address not found on stack".to_string());
+                        -1
+                    });
+                if ret_addr < 0 || (ret_addr as usize) >= MEM_SIZE {
+                    self.state =
+                        Status::Error(format!("Return address out of bounds: {}", ret_addr));
+                    return;
+                }
+                let new_sp = self.registers[Register::Rsp as usize] + 8;
+                if new_sp < 0 || (new_sp as usize) >= MEM_SIZE {
+                    self.state = Status::Error(format!("Stack pointer out of bounds: {}", new_sp));
+                    return;
+                }
+
+                self.log.push((
+                    id,
+                    AtomicChange::Register {
+                        reg: Register::Rsp,
+                        value: new_sp,
+                    },
+                ));
+
+                self.log
+                    .push((id, AtomicChange::InstructionPointer { ip: ret_addr }));
+            }
             // Handle other instructions...
             _ => todo!(),
         }
@@ -259,19 +347,29 @@ impl<'a, const MEM_SIZE: usize> Simulator<'a, MEM_SIZE> {
             0x0 => Ok(Instruction::Halt),
             0x1 => Ok(Instruction::Nop),
             0x2 => {
-                let (r1, r2) = self.fetch_decode_regs(self.instruction_pointer + 1)?;
-                Ok(Instruction::Cmov(CondOp::Uncon, r1, r2))
+                let (r_a, r_b) = self.fetch_decode_regs(self.instruction_pointer + 1)?;
+                Ok(Instruction::Cmov(CondOp::Uncon, r_a, r_b))
             }
             0x3 => {
-                let r2 = self.fetch_decode_regb(self.instruction_pointer + 1)?;
+                let r_b = self.fetch_decode_regb(self.instruction_pointer + 1)?;
                 let imm = self.fetch_decode_imm(self.instruction_pointer + 2)?;
-                Ok(Instruction::Irmov(LabOrImm::Immediate(imm), r2))
+                Ok(Instruction::Irmov(LabOrImm::Immediate(imm), r_b))
             }
             0x4 => {
-                let (r1, r2) = self.fetch_decode_regs(self.instruction_pointer + 1)?;
-                let disp = self.fetch_decode_imm(self.instruction_pointer + 2)?;
-                Ok(Instruction::Rmmov(r1, disp, r2))
+                let (r_a, r_b) = self.fetch_decode_regs(self.instruction_pointer + 1)?;
+                let imm = self.fetch_decode_imm(self.instruction_pointer + 2)?;
+                Ok(Instruction::Rmmov(r_a, imm, r_b))
             }
+            0x5 => {
+                let (r_a, r_b) = self.fetch_decode_regs(self.instruction_pointer + 1)?;
+                let imm = self.fetch_decode_imm(self.instruction_pointer + 2)?;
+                Ok(Instruction::Mrmov(imm, r_b, r_a))
+            }
+            0x8 => {
+                let imm = self.fetch_decode_imm(self.instruction_pointer + 1)?;
+                Ok(Instruction::Call(LabOrImm::Immediate(imm)))
+            }
+            0x9 => Ok(Instruction::Ret),
             // Add more opcodes as needed
             _ => Err(format!("Unknown opcode: {:#x}", opcode)),
         }
