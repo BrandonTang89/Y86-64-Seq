@@ -1,6 +1,6 @@
-nop
-nop
-irmovq $10, %rax
-rrmovq %rax, %rbx
-rmmovq %rbx, 8(%rax)
+irmovq $8, %rax
+irmovq $2, %rbx
+subq %rbx, %rax         
+irmovq $999, %rcx
+cmovle %rcx, %r10       
 halt

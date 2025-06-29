@@ -1,5 +1,5 @@
 use colour::{println_bold, red_ln};
-use y86_seq::assembler::parse_and_gen;
+use y86_seq::assembler::{parse_and_gen, remove_comments};
 
 /// Assembles An Input Y86-64 Assembly File into a Machine Code Object File
 fn main() {
@@ -14,6 +14,7 @@ fn main() {
     };
     println!("Input file: {}", src_file);
     let src_content = std::fs::read_to_string(&src_file).expect("Failed to read input file");
+    let src_content = remove_comments(&src_content);
 
     println!("=========================");
     println!("Assembly Code:");

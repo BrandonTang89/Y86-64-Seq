@@ -49,11 +49,11 @@ impl fmt::Display for CondOp {
         let op = match self {
             CondOp::Uncon => "uncon",
             CondOp::Le => "le",
-            CondOp::L => "l",
-            CondOp::E => "e",
+            CondOp::Lt => "l",
+            CondOp::Eq => "e",
             CondOp::Ne => "ne",
             CondOp::Ge => "ge",
-            CondOp::G => "g",
+            CondOp::Gt => "g",
         };
         write!(f, "{}", op)
     }

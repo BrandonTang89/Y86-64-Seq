@@ -7,6 +7,15 @@ use codegen::{AssembledCode, gen_code};
 use parser::mk_parser;
 type ParseResult<'a> = Vec<BorrowedInstruction<'a>>;
 
+/// Remove Comments from the source assembly code.
+pub fn remove_comments(src: &str) -> String {
+    src.lines()
+        .map(|line| line.split('#').next().unwrap_or(line).trim())
+        .filter(|line| !line.is_empty())
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
 /// Handles errors from the parser and formats them for display.
 fn handle_parse_errors<'a>(src_asm: &str, errors: Vec<chumsky::error::Simple<'a, char>>) -> String {
     let span = errors.first().unwrap().span();

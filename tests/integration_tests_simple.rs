@@ -1,4 +1,4 @@
-use y86_seq::assembler::parse_and_gen;
+use y86_seq::assembler::{parse_and_gen, remove_comments};
 use y86_seq::ast::Register;
 use y86_seq::simulator::simulate;
 
@@ -192,3 +192,107 @@ halt
         "R8 should be 5 after xorq %r9, %r8 (15 ^ 10)"
     );
 }
+
+// ...existing code...
+
+#[test]
+/// Tests conditional move operations: cmove, cmovne, cmovl, cmovle, cmovg, cmovge
+fn integration_tests_simple_6() {
+    let src_asm = r#"
+# Test cmove (move if equal)
+irmovq $10, %rax
+irmovq $10, %rbx
+subq %rbx, %rax         # This sets Z=1 (zero flag)
+irmovq $42, %rcx
+cmove %rcx, %rdx        # Should move 42 to %rdx since Z=1
+
+# Test cmovne (move if not equal)
+irmovq $5, %rax
+irmovq $3, %rbx
+subq %rbx, %rax         # This sets Z=0 (not zero)
+irmovq $99, %rcx
+cmovne %rcx, %rsi       # Should move 99 to %rsi since Z=0
+
+# Test cmovl (move if less than)
+irmovq $3, %rax
+irmovq $7, %rbx
+subq %rbx, %rax         # 3-7 = -4, sets N=1, V=0 (N!=V means less than)
+irmovq $123, %rcx
+cmovl %rcx, %rdi        # Should move 123 to %rdi since N!=V
+
+# Test cmovge (move if greater or equal)
+irmovq $7, %rax
+irmovq $3, %rbx
+subq %rbx, %rax         # 7-3 = 4, sets N=0, V=0 (N==V means greater or equal)
+irmovq $456, %rcx
+cmovge %rcx, %r8        # Should move 456 to %r8 since N==V
+
+# Test cmovg (move if greater)
+irmovq $10, %rax
+irmovq $5, %rbx
+subq %rbx, %rax         # 10-5 = 5, sets Z=0, N=0, V=0 (Z==0 && N==V means greater)
+irmovq $789, %rcx
+cmovg %rcx, %r9         # Should move 789 to %r9 since Z==0 && N==V
+
+# Test cmovle (move if less or equal) - should NOT move
+irmovq $8, %rax
+irmovq $2, %rbx
+subq %rbx, %rax         # 8-2 = 6, sets Z=0, N=0, V=0 (Z==1 || N!=V is false)
+irmovq $999, %rcx
+cmovle %rcx, %r10       # Should NOT move since condition is false
+
+halt
+        "#;
+
+    let src_asm = remove_comments(src_asm);
+    let machine_code = parse_and_gen(&src_asm)
+        .unwrap_or_else(|e| panic!("Parsing failed: {:?}", e))
+        .1
+        .bytes;
+    let simulator = simulate::<1024>(&machine_code);
+
+    assert!(simulator.is_halted(), "Simulator did not halt as expected");
+
+    // Test cmove (should have moved)
+    assert_eq!(
+        simulator.registers[Register::Rdx as usize],
+        42,
+        "RDX should be 42 after cmove when Z=1"
+    );
+
+    // Test cmovne (should have moved)
+    assert_eq!(
+        simulator.registers[Register::Rsi as usize],
+        99,
+        "RSI should be 99 after cmovne when Z=0"
+    );
+
+    // Test cmovl (should have moved)
+    assert_eq!(
+        simulator.registers[Register::Rdi as usize],
+        123,
+        "RDI should be 123 after cmovl when N!=V"
+    );
+
+    // Test cmovge (should have moved)
+    assert_eq!(
+        simulator.registers[Register::R8 as usize],
+        456,
+        "R8 should be 456 after cmovge when N==V"
+    );
+
+    // Test cmovg (should have moved)
+    assert_eq!(
+        simulator.registers[Register::R9 as usize],
+        789,
+        "R9 should be 789 after cmovg when Z==0 && N==V"
+    );
+
+    // Test cmovle (should NOT have moved)
+    assert_eq!(
+        simulator.registers[Register::R10 as usize],
+        0,
+        "R10 should remain 0 after cmovle when condition is false"
+    );
+}
+// ...existing code...

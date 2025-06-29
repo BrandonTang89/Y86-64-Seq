@@ -120,9 +120,19 @@ impl<'a, const MEM_SIZE: usize> Simulator<'a, MEM_SIZE> {
     }
 
     fn condition_ok(&self, cond: CondOp) -> bool {
+        let zero = (self.condition_code & ZERO_MASK) != 0; // Z flag
+        let _carry = (self.condition_code & CARRY_MASK) != 0; // C flag  
+        let sign = (self.condition_code & SIGN_MASK) != 0; // N flag (negative)
+        let overflow = (self.condition_code & OVERFLOW_MASK) != 0; // V flag
+
         match cond {
-            CondOp::Uncon => true,
-            _ => todo!(),
+            CondOp::Uncon => true,                     // Unconditional
+            CondOp::Eq => zero,                        // Equal: Z==1
+            CondOp::Ne => !zero,                       // Not equal: Z==0
+            CondOp::Ge => sign == overflow,            // Greater or equal: N==V
+            CondOp::Lt => sign != overflow,            // Less than: N!=V
+            CondOp::Gt => !zero && (sign == overflow), // Greater than: (Z==0) && (N==V)
+            CondOp::Le => zero || (sign != overflow),  // Less or equal: (Z==1) || (N!=V)
         }
     }
     /// Executes the given instruction until it halts
@@ -428,7 +438,17 @@ impl<'a, const MEM_SIZE: usize> Simulator<'a, MEM_SIZE> {
             0x1 => Ok(Instruction::Nop),
             0x2 => {
                 let (r_a, r_b) = self.fetch_decode_regs(self.instruction_pointer + 1)?;
-                Ok(Instruction::Cmov(CondOp::Uncon, r_a, r_b))
+                let cond = match func {
+                    0x0 => CondOp::Uncon,
+                    0x1 => CondOp::Le,
+                    0x2 => CondOp::Lt,
+                    0x3 => CondOp::Eq,
+                    0x4 => CondOp::Ne,
+                    0x5 => CondOp::Ge,
+                    0x6 => CondOp::Gt,
+                    _ => return Err(format!("Invalid condition code function: {}", func)),
+                };
+                Ok(Instruction::Cmov(cond, r_a, r_b))
             }
             0x3 => {
                 let r_b = self.fetch_decode_regb(self.instruction_pointer + 1)?;

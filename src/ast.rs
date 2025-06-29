@@ -57,12 +57,18 @@ pub enum BinaryOp {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum CondOp {
     Uncon = 0,
+    /// Lower or Same
     Le = 1,
-    L = 2,
-    E = 3,
+    /// Lower or Equal
+    Lt = 2,
+    /// Equal
+    Eq = 3,
+    /// Not Equal
     Ne = 4,
+    /// Greater or Same
     Ge = 5,
-    G = 6,
+    /// Greater
+    Gt = 6,
 }
 
 #[derive(Debug, Clone, PartialEq)]

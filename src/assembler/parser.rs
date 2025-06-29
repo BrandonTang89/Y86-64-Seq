@@ -40,7 +40,8 @@ fn imm_parser<'a>() -> Boxed<'a, 'a, &'a str, ImmType, extra::Err<Simple<'a, cha
 }
 
 /// Parses either D(reg) or reg
-fn displaced_reg_parser<'a>() -> Boxed<'a, 'a, &'a str, (ImmType, Register), extra::Err<Simple<'a, char>>> {
+fn displaced_reg_parser<'a>()
+-> Boxed<'a, 'a, &'a str, (ImmType, Register), extra::Err<Simple<'a, char>>> {
     let reg = reg_parser();
     let imm = imm_parser();
 
@@ -56,7 +57,8 @@ fn displaced_reg_parser<'a>() -> Boxed<'a, 'a, &'a str, (ImmType, Register), ext
 }
 
 /// Constructs a parser for the Y86-64 assembly language
-pub fn mk_parser<'a>() -> impl Parser<'a, &'a str, Vec<BorrowedInstruction<'a>>, extra::Err<Simple<'a, char>>> {
+pub fn mk_parser<'a>()
+-> impl Parser<'a, &'a str, Vec<BorrowedInstruction<'a>>, extra::Err<Simple<'a, char>>> {
     let reg = reg_parser();
 
     let dollar_imm = just('$').ignore_then(imm_parser());
@@ -111,11 +113,11 @@ pub fn mk_parser<'a>() -> impl Parser<'a, &'a str, Vec<BorrowedInstruction<'a>>,
     let jmp = choice((
         keyword("jmp").to(CondOp::Uncon),
         keyword("jle").to(CondOp::Le),
-        keyword("jl").to(CondOp::L),
-        keyword("je").to(CondOp::E),
+        keyword("jl").to(CondOp::Lt),
+        keyword("je").to(CondOp::Eq),
         keyword("jne").to(CondOp::Ne),
         keyword("jge").to(CondOp::Ge),
-        keyword("jg").to(CondOp::G),
+        keyword("jg").to(CondOp::Gt),
     ))
     .then(lab_or_imm.clone())
     .map(|(op, addr)| Instruction::Jmp(op, addr));
@@ -123,11 +125,11 @@ pub fn mk_parser<'a>() -> impl Parser<'a, &'a str, Vec<BorrowedInstruction<'a>>,
     let cmov = choice((
         keyword("rrmovq").to(CondOp::Uncon),
         keyword("cmovle").to(CondOp::Le),
-        keyword("cmovl").to(CondOp::L),
-        keyword("cmove").to(CondOp::E),
+        keyword("cmovl").to(CondOp::Lt),
+        keyword("cmove").to(CondOp::Eq),
         keyword("cmovne").to(CondOp::Ne),
         keyword("cmovge").to(CondOp::Ge),
-        keyword("cmovg").to(CondOp::G),
+        keyword("cmovg").to(CondOp::Gt),
     ))
     .then(reg.clone())
     .then(just(',').ignore_then(reg.clone()))
