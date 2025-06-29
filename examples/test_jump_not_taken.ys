@@ -1,0 +1,9 @@
+# Test program for conditional jump not taken
+irmovq $5, %rax         # Load 5 into rax
+irmovq $10, %rbx        # Load 10 into rbx
+subq %rbx, %rax         # rax = rax - rbx = -5 (negative result)
+jg skip                 # Jump to skip if result > 0 (should NOT jump)
+irmovq $777, %rcx       # This should execute since jump not taken
+skip:
+irmovq $42, %rdx        # This should also execute
+halt

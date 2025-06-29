@@ -1,0 +1,7 @@
+# Test program for unconditional jump
+irmovq $100, %rax       # Load 100 into rax
+jmp skip                # Unconditional jump to skip
+irmovq $999, %rbx       # This should be skipped
+skip:
+irmovq $42, %rcx        # This should execute
+halt

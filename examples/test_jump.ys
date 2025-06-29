@@ -1,0 +1,9 @@
+# Test program for jump instructions
+irmovq $10, %rax        # Load 10 into rax
+irmovq $5, %rbx         # Load 5 into rbx
+subq %rbx, %rax         # rax = rax - rbx = 5 (positive result)
+jg end                  # Jump to end if result > 0 (should jump)
+irmovq $999, %rcx       # This should be skipped
+end:
+irmovq $42, %rdx        # This should execute
+halt

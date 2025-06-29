@@ -372,6 +372,92 @@ impl<'a, const MEM_SIZE: usize> Simulator<'a, MEM_SIZE> {
                 self.log
                     .push((id, AtomicChange::InstructionPointer { ip: ret_addr }));
             }
+            Instruction::Jmp(cond, target) => {
+                let LabOrImm::Immediate(addr) = target else {
+                    self.state = Status::Error("Invalid jump target".to_string());
+                    return;
+                };
+
+                if *addr < 0 || (*addr as usize) >= self.source.len() {
+                    self.state = Status::Error(format!("Jump address out of bounds: {}", addr));
+                    return;
+                }
+
+                let new_ip = if self.condition_ok(*cond) {
+                    // Conditional jump taken
+                    *addr
+                } else {
+                    // Conditional jump not taken, continue to next instruction
+                    self.instruction_pointer + 9 // 1 byte opcode + 8 bytes immediate
+                };
+
+                self.log
+                    .push((id, AtomicChange::InstructionPointer { ip: new_ip }));
+            }
+            Instruction::Push(reg) => {
+                let new_sp = self.registers[Register::Rsp as usize] - 8;
+                if new_sp < 0 || (new_sp as usize) >= MEM_SIZE {
+                    self.state = Status::Error(format!("Stack pointer out of bounds: {}", new_sp));
+                    return;
+                }
+
+                let value = self.registers[*reg as usize];
+
+                self.log.push((
+                    id,
+                    AtomicChange::Memory {
+                        addr: new_sp,
+                        value,
+                    },
+                ));
+
+                self.log.push((
+                    id,
+                    AtomicChange::Register {
+                        reg: Register::Rsp,
+                        value: new_sp,
+                    },
+                ));
+
+                self.log.push((
+                    id,
+                    AtomicChange::InstructionPointer {
+                        ip: self.instruction_pointer + 2,
+                    },
+                ));
+            }
+            Instruction::Pop(reg) => {
+                let sp = self.registers[Register::Rsp as usize];
+                if sp < 0 || (sp as usize) >= MEM_SIZE {
+                    self.state = Status::Error(format!("Stack pointer out of bounds: {}", sp));
+                    return;
+                }
+
+                let value = self.memory[sp as usize];
+
+                self.log
+                    .push((id, AtomicChange::Register { reg: *reg, value }));
+
+                // Only update %rsp if we're not popping to %rsp
+                // If we're popping to %rsp, the value from the stack becomes the new %rsp
+                if *reg != Register::Rsp {
+                    let new_sp = sp + 8;
+                    self.log.push((
+                        id,
+                        AtomicChange::Register {
+                            reg: Register::Rsp,
+                            value: new_sp,
+                        },
+                    ));
+                }
+
+                self.log.push((
+                    id,
+                    AtomicChange::InstructionPointer {
+                        ip: self.instruction_pointer + 2,
+                    },
+                ));
+            }
             // Handle other instructions...
             _ => todo!(),
         }
@@ -404,6 +490,19 @@ impl<'a, const MEM_SIZE: usize> Simulator<'a, MEM_SIZE> {
         };
 
         Ok(reg_b)
+    }
+
+    fn fetch_decode_rega(&self, ptr: i64) -> Result<Register, String> {
+        let byte = self
+            .source
+            .get(ptr as usize)
+            .ok_or_else(|| format!("IP Out of Range: {}", ptr))?;
+
+        let Ok(reg_a) = Register::try_from(*byte >> 4) else {
+            return Err(format!("Invalid register A: {}", byte >> 4));
+        };
+
+        Ok(reg_a)
     }
 
     fn fetch_decode_imm(&self, ptr: i64) -> Result<i64, String> {
@@ -476,11 +575,33 @@ impl<'a, const MEM_SIZE: usize> Simulator<'a, MEM_SIZE> {
                 };
                 Ok(Instruction::Binop(op, r_a, r_b))
             }
+            0x7 => {
+                let cond = match func {
+                    0x0 => CondOp::Uncon,
+                    0x1 => CondOp::Le,
+                    0x2 => CondOp::Lt,
+                    0x3 => CondOp::Eq,
+                    0x4 => CondOp::Ne,
+                    0x5 => CondOp::Ge,
+                    0x6 => CondOp::Gt,
+                    _ => return Err(format!("Invalid jump condition function: {}", func)),
+                };
+                let imm = self.fetch_decode_imm(self.instruction_pointer + 1)?;
+                Ok(Instruction::Jmp(cond, LabOrImm::Immediate(imm)))
+            }
             0x8 => {
                 let imm = self.fetch_decode_imm(self.instruction_pointer + 1)?;
                 Ok(Instruction::Call(LabOrImm::Immediate(imm)))
             }
             0x9 => Ok(Instruction::Ret),
+            0xa => {
+                let reg = self.fetch_decode_rega(self.instruction_pointer + 1)?;
+                Ok(Instruction::Push(reg))
+            }
+            0xb => {
+                let reg = self.fetch_decode_rega(self.instruction_pointer + 1)?;
+                Ok(Instruction::Pop(reg))
+            }
             // Add more opcodes as needed
             _ => Err(format!("Unknown opcode: {:#x}", opcode)),
         }

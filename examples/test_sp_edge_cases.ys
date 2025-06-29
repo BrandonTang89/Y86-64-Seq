@@ -1,0 +1,20 @@
+# Test push/pop stack pointer edge cases
+# Initial SP should be 1016 (1024-8)
+rrmovq %rsp, %r11   # Save initial SP value
+
+# Test push %rsp - should push the old value of SP
+pushq %rsp          # Push current SP value (1016) onto stack, SP becomes 1008
+rrmovq %rsp, %r12   # Save new SP value (should be 1008)
+
+# Pop the pushed SP value to verify it's correct
+popq %rax           # Should get 1016 (the old SP value that was pushed)
+
+# Test pop %rsp - the value from stack should become new SP
+irmovq $500, %rbx   # Prepare a value to push
+pushq %rbx          # Push 500 onto stack
+popq %rsp           # Pop 500 into %rsp - %rsp should now be 500, not SP+8
+
+# Verify SP is now 500
+rrmovq %rsp, %rcx   # Copy current SP to rcx
+
+halt
