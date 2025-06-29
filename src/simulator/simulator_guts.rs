@@ -1,6 +1,8 @@
 use crate::ast::{self, CondOp, OwnedInstruction};
 use crate::ast::{Instruction, LabOrImm, Register};
 mod atomic_change_display;
+#[cfg(test)]
+mod simulator_guts_tests;
 
 /// Vec(instruction_pointer, instruction)
 pub type Disassembly = Vec<(i64, OwnedInstruction)>;
@@ -28,6 +30,11 @@ pub enum Status {
     Halted,
     Error(String),
 }
+
+static CARRY_MASK: u8 = 0b0001; // 4 bits for condition codes
+static ZERO_MASK: u8 = 0b0010;
+static SIGN_MASK: u8 = 0b0100;
+static OVERFLOW_MASK: u8 = 0b1000;
 
 pub struct Simulator<'a, const MEM_SIZE: usize> {
     /// The current values of the registers.
@@ -76,6 +83,11 @@ impl<'a, const MEM_SIZE: usize> Simulator<'a, MEM_SIZE> {
         self.registers = [0; 13];
         self.instruction_pointer = 0;
         self.memory = [0; MEM_SIZE];
+        self.condition_code = 0;
+        self.state = Status::Running;
+        self.disassembly.clear();
+        self.log.clear();
+        self.next_to_commit = 0;
     }
 
     /// Applies all the uncommitted changes in the log to the simulator state.
@@ -213,6 +225,74 @@ impl<'a, const MEM_SIZE: usize> Simulator<'a, MEM_SIZE> {
                     },
                 ));
             }
+            Instruction::Binop(op, src, dest) => {
+                let r1 = self.registers[*src as usize];
+                let r2 = self.registers[*dest as usize];
+
+                let original_carry = self.condition_code & CARRY_MASK != 0;
+                let original_overflow = self.condition_code & OVERFLOW_MASK != 0;
+
+                let (result, carry, overflow) = match op {
+                    ast::BinaryOp::Add => {
+                        let (res, car) = r1.overflowing_add(r2);
+
+                        let overflow = if r1 < 0 && r2 < 0 && res >= 0 {
+                            true
+                        } else if r1 >= 0 && r2 >= 0 && res < 0 {
+                            true
+                        } else {
+                            false
+                        };
+                        (res, car, overflow)
+                    }
+                    ast::BinaryOp::Sub => {
+                        let nr1 = -r1;
+                        let (res, car) = nr1.overflowing_add(r2);
+                        let overflow = if nr1 < 0 && r2 < 0 && res >= 0 {
+                            true
+                        } else if nr1 >= 0 && r2 >= 0 && res < 0 {
+                            true
+                        } else {
+                            false
+                        };
+                        (res, car, overflow)
+                    }
+                    ast::BinaryOp::And => {
+                        let res = r1 & r2;
+                        (res, original_carry, original_overflow)
+                    }
+                    ast::BinaryOp::Xor => {
+                        let res = r1 ^ r2;
+                        (res, original_carry, original_overflow)
+                    }
+                };
+
+                self.log.push((
+                    id,
+                    AtomicChange::Register {
+                        reg: *dest,
+                        value: result,
+                    },
+                ));
+
+                self.log.push((
+                    id,
+                    AtomicChange::ConditionCode {
+                        cc: ((if carry { CARRY_MASK } else { 0 })
+                            | (if result == 0 { ZERO_MASK } else { 0 })
+                            | (if result < 0 { SIGN_MASK } else { 0 })
+                            | (if overflow { OVERFLOW_MASK } else { 0 })),
+                    },
+                ));
+
+                self.log.push((
+                    id,
+                    AtomicChange::InstructionPointer {
+                        ip: self.instruction_pointer + 2,
+                    },
+                ));
+            }
+
             Instruction::Call(target) => {
                 let LabOrImm::Immediate(imm) = target else {
                     self.state = Status::Error("Invalid immediate value in Call".to_string());
@@ -341,7 +421,7 @@ impl<'a, const MEM_SIZE: usize> Simulator<'a, MEM_SIZE> {
             .ok_or_else(|| format!("IP Out of Range: {}", self.instruction_pointer))?;
 
         let opcode = byte0 >> 4;
-        let _func = byte0 & 0x0F;
+        let func = byte0 & 0x0F;
 
         match opcode {
             0x0 => Ok(Instruction::Halt),
@@ -364,6 +444,17 @@ impl<'a, const MEM_SIZE: usize> Simulator<'a, MEM_SIZE> {
                 let (r_a, r_b) = self.fetch_decode_regs(self.instruction_pointer + 1)?;
                 let imm = self.fetch_decode_imm(self.instruction_pointer + 2)?;
                 Ok(Instruction::Mrmov(imm, r_b, r_a))
+            }
+            0x6 => {
+                let (r_a, r_b) = self.fetch_decode_regs(self.instruction_pointer + 1)?;
+                let op = match func {
+                    0x0 => ast::BinaryOp::Add,
+                    0x1 => ast::BinaryOp::Sub,
+                    0x2 => ast::BinaryOp::And,
+                    0x3 => ast::BinaryOp::Xor,
+                    _ => return Err(format!("Invalid binary operation function: {}", func)),
+                };
+                Ok(Instruction::Binop(op, r_a, r_b))
             }
             0x8 => {
                 let imm = self.fetch_decode_imm(self.instruction_pointer + 1)?;
